@@ -7,6 +7,7 @@ from django.db.models import Count
 from cvat.apps.engine.models import (
     JobType,
     LabeledImage,
+    LabeledInterval,
     LabeledShape,
     LabeledTrack,
     SourceType,
@@ -18,13 +19,18 @@ def count_annotations_by_label(task: Task) -> dict:
     """
     Counts a task's annotations per label (class) with GROUP BY queries in the database.
 
-    Shapes, tracks and tags are stored in separate tables, so each is grouped on its own and
-    the results are summed per label, and split by where the annotation came from (imported
-    from a file, drawn by hand, or produced by a model).
+    Shapes, tracks, tags and intervals (audio) are stored in separate tables, so each is grouped
+    on its own, the results are summed per label, and they are split by where the annotation came
+    from (imported from a file, drawn by hand, or produced by a model).
 
-    Only top-level objects in regular annotation jobs are counted: skeleton points are child
-    rows (parent set) of one skeleton, and ground truth or consensus replica jobs repeat frames
-    that a regular job already covers.
+    An annotation here is one stored object. Only top-level objects in regular annotation jobs are
+    counted: skeleton points are child rows (parent set) of one skeleton, and ground truth or
+    replica jobs repeat frames that a regular job already covers.
+
+    Consequences of counting what is stored, not what an export would contain:
+    - an object on a frame that two overlapping jobs share is stored once per job, so it counts
+      twice; CVAT itself only reconciles those with geometric matching when it merges jobs;
+    - an object on a deleted frame still counts, because CVAT keeps it until the frame is restored.
     """
     in_task = {"job__segment__task_id": task.id, "job__type": JobType.ANNOTATION.value}
 
@@ -32,6 +38,7 @@ def count_annotations_by_label(task: Task) -> dict:
         LabeledShape.objects.filter(**in_task, parent__isnull=True),
         LabeledTrack.objects.filter(**in_task, parent__isnull=True),
         LabeledImage.objects.filter(**in_task),
+        LabeledInterval.objects.filter(**in_task),
     )
 
     counts = Counter()

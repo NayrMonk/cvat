@@ -7,6 +7,7 @@ from cvat.apps.engine.models import (
     JobType,
     Label,
     LabeledImage,
+    LabeledInterval,
     LabeledShape,
     LabeledTrack,
     Segment,
@@ -43,6 +44,9 @@ class TaskAnnotationCountsTest(ApiTestBase):
     def _get(self, task_id: int, user: User | None):
         with ForceLogin(user, self.client):
             return self.client.get(f"/api/annotation-stats/tasks/{task_id}")
+
+    def client_get_counts(self):
+        return self._get(self.task.id, self.owner)
 
     def _counts(self, response) -> dict[str, int]:
         return {label["name"]: label["count"] for label in response.json()["labels"]}
@@ -113,6 +117,29 @@ class TaskAnnotationCountsTest(ApiTestBase):
         response = self._get(self.task.id, self.owner)
 
         self.assertEqual(self._counts(response)["cat"], 1)
+
+    def test_audio_intervals_are_counted(self):
+        LabeledInterval.objects.create(job=self.job, label=self.bird, start=0, stop=5)
+        LabeledInterval.objects.create(job=self.job, label=self.bird, start=5, stop=9)
+
+        response = self.client_get_counts()
+
+        self.assertEqual(self._counts(response)["bird"], 2)
+
+    def test_an_object_on_frames_shared_by_overlapping_jobs_counts_once_per_job(self):
+        # Overlapping jobs each store their own copy of the objects on the shared frames. The
+        # endpoint reports what is stored, so such an object counts twice; this test records that
+        # decision, so changing it has to be a conscious one.
+        overlapping = Job.objects.create(
+            segment=Segment.objects.create(task=self.task, start_frame=8, stop_frame=17),
+            type=JobType.ANNOTATION,
+        )
+        self._add_shapes(self.job, self.cat, 1)
+        self._add_shapes(overlapping, self.cat, 1)
+
+        response = self.client_get_counts()
+
+        self.assertEqual(self._counts(response)["cat"], 2)
 
     def test_other_tasks_are_not_counted(self):
         other = Task.objects.create(name="other", owner=self.owner)
