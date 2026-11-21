@@ -83,14 +83,56 @@ run 5 samples: 46.5 47.8 48.2 48.4 47.4 47.9 46.6 45.4 45.2 48.4 47.9 46.3 49.5 
 run 5 median=47.8 min=45.2 max=53.0
 ```
 
+**Final run on the finished code.** After the source split I added a fourth query (audio intervals, which an
+independent review showed were not being counted), so the number was measured once more on the code that is submitted,
+on the task confirmed to hold exactly the 41,866 imported shapes (0 differences from the COCO file just before).
+Median of the 5 run medians **52.8 ms** (51.9 to 57.5 ms): target met, with about 47 ms of headroom. Over the whole
+work the median moved from 44.7 ms to 48.2 ms to 52.8 ms as the query grew from three tables to four and gained the
+`source` column, which is about what a few more small queries should cost; I did not profile each step.
+
+```
+# MO-1 final run on the finished code, 2026-11-21T12:39:20Z
+# GET http://localhost:8080/api/annotation-stats/tasks/1 (task 1: 5000 images, 41866 shapes), session cookie, ms, 1 warm-up discarded
+run 1 samples: 54.5 55.2 52.0 62.2 52.8 53.2 53.1 51.0 51.7 49.9 55.2 51.3 50.3 59.8 50.1 50.9 50.0 51.2 49.5 52.0 
+run 1 median=51.9 min=49.5 max=62.2
+run 2 samples: 48.7 50.1 50.6 52.2 58.0 50.1 55.7 60.4 66.6 57.1 58.9 58.3 54.1 63.6 70.0 64.4 54.9 61.4 54.7 58.5 
+run 2 median=57.5 min=48.7 max=70.0
+run 3 samples: 76.8 54.1 54.5 54.1 50.7 49.8 47.0 55.0 53.3 50.5 49.6 52.4 53.5 47.1 82.0 48.1 51.6 52.4 57.0 54.4 
+run 3 median=52.8 min=47.0 max=82.0
+run 4 samples: 52.1 52.8 56.1 58.4 52.8 54.2 52.2 58.5 51.9 50.9 54.5 54.6 50.8 51.5 50.7 55.1 46.3 53.1 53.8 51.6 
+run 4 median=52.8 min=46.3 max=58.5
+run 5 samples: 52.5 63.0 62.4 57.6 56.8 54.5 77.5 51.5 51.4 54.1 52.0 50.7 51.2 54.6 50.8 49.8 50.7 49.9 51.4 55.7 
+run 5 median=52.2 min=49.8 max=77.5
+```
+
 ## MO-2 — live update latency (stretch)
 
 | Field | Entry |
 |---|---|
-| What is measured | Time from saving a new box in a job to the stats page in another tab showing the new count. |
-| How | `performance.now()` logged in the browser console when the WebSocket message arrives and when the chart re-renders with new data, plus the save request's end time from the network panel. |
+| What is measured | Time from the REST call that saves a new box returning, to the stats page (already open, never reloaded) showing the new total. |
+| How | Headless Chrome driven by a script. The page is left open on `/tasks/1/annotation-stats`; the script creates one manual box through CVAT's REST API, records the time when that response arrives, then polls the page's "N annotations" header every 10 ms and records when it shows the new number. The box is deleted again between runs. |
 | Target | Median of 5 runs at or below **1 s**. |
-| Conditions | Same as MO-1, two tabs in one Chrome window. |
-| Not included | Bulk imports. |
+| Conditions | Same stack and task as MO-1, nothing else running, WebSocket connected ("Live") before every run. |
+| Not included | Bulk imports; the time the save itself takes; more than one open page. |
 
-**Result:** _(added if reached.)_
+**Change of method.** The plan said two tabs and `performance.now()` marks read from the browser console. A script
+reading the page's own header is repeatable and avoids reading marks off a console by hand, so I used that; it measures
+the same interval.
+
+**Why 1 s:** a person watching a chart should see their own save reflected before they look away; anything under a
+second reads as immediate.
+
+**Result: target met.** Median **378 ms** (370 to 412 ms) over 5 runs on the final code. About 300 ms of that is the
+deliberate delay that collapses several messages in a row into one refetch (`REFRESH_DELAY_MS` in
+`use-live-updates.ts`); the rest is the REST refetch (about 50 ms, see MO-1) and rendering. Raw output:
+
+```
+page open, no reload from here on. badge="Live" total=41866
+run 1: saved (HTTP 200) -> page shows 41867 after 412 ms
+run 2: saved (HTTP 200) -> page shows 41867 after 391 ms
+run 3: saved (HTTP 200) -> page shows 41867 after 376 ms
+run 4: saved (HTTP 200) -> page shows 41867 after 378 ms
+run 5: saved (HTTP 200) -> page shows 41867 after 370 ms
+MO-2 save -> chart update: median 378 ms, min 370, max 412
+raw ms: 412 391 376 378 370
+```
