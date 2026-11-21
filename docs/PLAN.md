@@ -27,8 +27,8 @@ CVAT's UI that draws the counts as a bar chart, updated live.
 |---|------|------|
 | 0 | This plan, Definition of Done, objective targets (this commit, no code) | 0:30 |
 | 1 | Django app `test`: endpoint `GET /api/annotation-stats/tasks/<id>`, counts with `GROUP BY` in Postgres | 1:00 |
-| 5 | Auth on the same endpoint: 401 without login, 403 via CVAT's `TaskPermission` "view" check; tests | 0:30 |
 | 2–4 | UI page `/tasks/<id>/annotation-stats`: bar chart, loading, empty and error states with retry | 1:30 |
+| 5 | Auth on the same endpoint: 401 without login, 403 via CVAT's `TaskPermission` "view" check; tests | 0:30 |
 | 6 | Measure MO-1 (see Objectives), 5 runs, fix if missed | 0:45 |
 | 7 | Split each bar by annotation source (file / manual / auto / semi-auto) | 0:30 |
 | 8 | Live updates: `post_save` on `Task.touch()` → Redis publish → WebSocket → page refetches | 1:15 |
@@ -36,7 +36,8 @@ CVAT's UI that draws the counts as a bar chart, updated live.
 | 10 | Decision record, Definition of Done ticked with evidence | 0:30 |
 | – | Buffer | 0:45 |
 
-Items 1–4 come first. I will not start the WebSocket work until the page handles the empty and failure cases.
+I work down the assessment's list in order. Items 1–4 are the floor: nothing after them starts until the page
+handles the empty and failure cases.
 
 **Why split by source (item 7):** a COCO task starts with everything imported (`file`). The split shows how much
 of each class came from the import and how much people drew by hand (`manual`) or a model produced (`auto`). With
