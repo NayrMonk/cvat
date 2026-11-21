@@ -56,10 +56,11 @@ function describeFailure(code: number | undefined): FailureText {
     }
 }
 
-const LIVE_BADGE: Record<LiveStatus, { status: 'processing' | 'success' | 'default'; text: string }> = {
+const LIVE_BADGE: Record<LiveStatus, { status: 'processing' | 'success' | 'warning' | 'default'; text: string }> = {
     connecting: { status: 'processing', text: 'Connecting' },
     live: { status: 'success', text: 'Live' },
-    closed: { status: 'default', text: 'Not live' },
+    reconnecting: { status: 'warning', text: 'Reconnecting' },
+    stopped: { status: 'default', text: 'Live updates off' },
 };
 
 async function fetchCounts(taskId: number): Promise<TaskAnnotationCounts> {
@@ -101,12 +102,17 @@ export default function AnnotationStatsPage(): JSX.Element {
             const counts = await fetchCounts(taskId);
             if (request === latestRequest.current) setLoaded({ status: 'ready', counts });
         } catch (error: unknown) {
+            if (request !== latestRequest.current) return;
+
+            // A failed refresh keeps a chart that is already on screen, except when the server says
+            // the user may no longer see this task, which the page must not keep showing. Without a
+            // chart there is nothing to keep, and this request may have replaced the initial load,
+            // so the failure has to be shown or the page would wait on its spinner for ever.
             const code = (error as { code?: number }).code;
-            // A failed refresh keeps the last good chart, except when the server says the user may no
-            // longer see this task, which the page must not keep showing.
-            if (request === latestRequest.current && [401, 403, 404].includes(code)) {
-                setLoaded({ status: 'failed', code });
-            }
+            setLoaded((current) => (
+                current.status === 'ready' && ![401, 403, 404].includes(code) ?
+                    current : { status: 'failed', code }
+            ));
         }
     }, [taskId]);
 
