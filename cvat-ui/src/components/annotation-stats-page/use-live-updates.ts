@@ -23,6 +23,11 @@ const STABLE_AFTER_MS = 10000;
 // Retrying cannot help with these: the user is not logged in, may not see the task, or it is gone.
 const FATAL_CODES = [401, 403, 404];
 
+// Sent by the server when a socket reaches its maximum age. Not a failure: the page takes a new
+// ticket straight away, which re-checks that the user may still see the task. Keep in sync with
+// CLOSE_RENEW in cvat/apps/test/websocket.py.
+const CLOSE_RENEW = 4002;
+
 /**
  * Keeps a WebSocket open for a task and calls onChange when the server says something in the task
  * changed, and again every time the connection is (re)established, because changes made while it
@@ -96,10 +101,16 @@ export default function useLiveUpdates(taskId: number, onChange: () => void): Li
                     refreshTimer = window.setTimeout(() => onChangeRef.current(), REFRESH_DELAY_MS);
                 }
             };
-            socket.onclose = () => {
+            socket.onclose = (event: CloseEvent) => {
                 window.clearTimeout(stableTimer);
                 socket = null;
-                retryLater();
+                if (cancelled) return;
+
+                if (event.code === CLOSE_RENEW) {
+                    open(); // no "Reconnecting" badge: this is routine, not a dropped connection
+                } else {
+                    retryLater();
+                }
             };
         }
 

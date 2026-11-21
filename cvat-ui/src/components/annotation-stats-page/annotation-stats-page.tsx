@@ -73,7 +73,8 @@ async function fetchCounts(taskId: number): Promise<TaskAnnotationCounts> {
 
 type Loaded =
     | { status: 'loading' }
-    | { status: 'ready'; counts: TaskAnnotationCounts }
+    // stale: the last refresh failed, so the numbers shown may be out of date
+    | { status: 'ready'; counts: TaskAnnotationCounts; stale?: boolean }
     | { status: 'failed'; code?: number };
 
 export default function AnnotationStatsPage(): JSX.Element {
@@ -104,14 +105,16 @@ export default function AnnotationStatsPage(): JSX.Element {
         } catch (error: unknown) {
             if (request !== latestRequest.current) return;
 
-            // A failed refresh keeps a chart that is already on screen, except when the server says
-            // the user may no longer see this task, which the page must not keep showing. Without a
-            // chart there is nothing to keep, and this request may have replaced the initial load,
-            // so the failure has to be shown or the page would wait on its spinner for ever.
+            // A failed refresh keeps a chart that is already on screen, but marks it stale so the page
+            // does not claim to be live while showing old numbers; the one exception is when the
+            // server says the user may no longer see this task, which the page must not keep
+            // showing. Without a chart there is nothing to keep, and this request may have replaced
+            // the initial load, so the failure has to be shown or the page would wait on its
+            // spinner for ever.
             const code = (error as { code?: number }).code;
             setLoaded((current) => (
                 current.status === 'ready' && ![401, 403, 404].includes(code) ?
-                    current : { status: 'failed', code }
+                    { ...current, stale: true } : { status: 'failed', code }
             ));
         }
     }, [taskId]);
@@ -164,8 +167,16 @@ export default function AnnotationStatsPage(): JSX.Element {
                         </Text>
                     </Col>
                 )}
+                {loaded.status === 'ready' && loaded.stale && (
+                    <Col offset={1} className='cvat-annotation-stats-stale'>
+                        <Text type='warning'>Could not refresh, these numbers may be out of date.</Text>
+                        <Button type='link' size='small' onClick={refresh}>Refresh</Button>
+                    </Col>
+                )}
                 <Col flex='auto' className='cvat-annotation-stats-live'>
-                    <Badge {...LIVE_BADGE[liveStatus]} />
+                    <span role='status' aria-live='polite'>
+                        <Badge {...LIVE_BADGE[liveStatus]} />
+                    </span>
                 </Col>
             </Row>
             {content}
