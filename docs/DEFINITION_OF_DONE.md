@@ -8,7 +8,7 @@ commit link. A tick without evidence counts as not done.
 - [ ] Endpoint totals per class match a count computed straight from `instances_val2017.json` for the same images.
 - [ ] Classes with zero annotations still appear (with 0) and skeleton parts / ground-truth jobs are not counted.
 - [ ] The task page links to the stats page, and the page shows the counts as a bar chart.
-- [ ] Empty task → the page shows an "no annotations yet" state, not an empty chart.
+- [ ] Empty task → the page shows a "no annotations yet" state, not an empty chart.
 - [ ] Failed request (server stopped, unknown task) → the page shows an error with a Retry button that works.
 
 ## Access (item 5)
