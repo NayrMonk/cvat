@@ -2,11 +2,13 @@
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cvat.apps.engine.models import Task
+from cvat.apps.engine.permissions import TaskPermission
 
 from .serializers import TaskAnnotationCountsSerializer
 from .services import count_annotations_by_label
@@ -23,5 +25,8 @@ class TaskAnnotationCountsView(APIView):
     )
     def get(self, request, task_id: int):
         task = get_object_or_404(Task, id=task_id)
+        if not TaskPermission.create_scope_view(request, task).check_access().allow:
+            raise PermissionDenied("You do not have access to this task")
+
         counts = count_annotations_by_label(task)
         return Response(TaskAnnotationCountsSerializer(counts).data)
