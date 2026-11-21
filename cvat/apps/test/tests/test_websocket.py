@@ -75,7 +75,7 @@ class TicketCheckTest(SimpleTestCase):
         self.assertEqual(code, websocket.CLOSE_TICKET_REJECTED)
 
     async def test_ticket_for_another_task_is_refused(self):
-        code = await self._closed_with(FakeSocket(5, ticket=issue_ticket(task_id=6, user_id=1)))
+        code = await self._closed_with(FakeSocket(5, ticket=issue_ticket(task_id=6)))
 
         self.assertEqual(code, websocket.CLOSE_TICKET_REJECTED)
 
@@ -93,7 +93,7 @@ class TicketCheckTest(SimpleTestCase):
 
 class LiveUpdatesTest(SimpleTestCase):
     async def _open(self, task_id: int = 5) -> tuple[FakeSocket, asyncio.Task]:
-        socket = FakeSocket(task_id, issue_ticket(task_id, user_id=1))
+        socket = FakeSocket(task_id, issue_ticket(task_id))
         handler = start(socket)
         self.assertEqual((await socket.next_message())["type"], "websocket.accept")
         return socket, handler

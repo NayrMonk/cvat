@@ -48,4 +48,4 @@ class LiveUpdateTicketView(APIView):
     )
     def get(self, request, task_id: int):
         task = get_viewable_task(request, task_id)
-        return Response({"ticket": issue_ticket(task.id, request.user.id)})
+        return Response({"ticket": issue_ticket(task.id)})

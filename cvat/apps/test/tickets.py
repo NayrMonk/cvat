@@ -8,8 +8,8 @@ _SALT = "annotation-stats-live-updates"
 TICKET_MAX_AGE_SECONDS = 60
 
 
-def issue_ticket(task_id: int, user_id: int) -> str:
-    return signing.dumps({"task": task_id, "user": user_id}, salt=_SALT)
+def issue_ticket(task_id: int) -> str:
+    return signing.dumps({"task": task_id}, salt=_SALT)
 
 
 def ticket_allows(ticket: str, task_id: int) -> bool:

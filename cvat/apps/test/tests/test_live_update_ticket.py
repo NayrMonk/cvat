@@ -14,20 +14,20 @@ from cvat.apps.test.tickets import TICKET_MAX_AGE_SECONDS, issue_ticket, ticket_
 
 class TicketRulesTest(SimpleTestCase):
     def test_ticket_opens_only_the_task_it_was_issued_for(self):
-        ticket = issue_ticket(task_id=7, user_id=1)
+        ticket = issue_ticket(task_id=7)
 
         self.assertTrue(ticket_allows(ticket, 7))
         self.assertFalse(ticket_allows(ticket, 8))
 
     def test_tampered_or_empty_ticket_is_refused(self):
-        ticket = issue_ticket(task_id=7, user_id=1)
+        ticket = issue_ticket(task_id=7)
 
         self.assertFalse(ticket_allows(ticket[:-2] + "xx", 7))
         self.assertFalse(ticket_allows("", 7))
         self.assertFalse(ticket_allows("not-a-ticket", 7))
 
     def test_expired_ticket_is_refused(self):
-        ticket = issue_ticket(task_id=7, user_id=1)
+        ticket = issue_ticket(task_id=7)
 
         later = time.time() + TICKET_MAX_AGE_SECONDS + 1
         with mock.patch("django.core.signing.time.time", return_value=later):
