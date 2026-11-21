@@ -84,6 +84,12 @@ class TicketCheckTest(SimpleTestCase):
 
         self.assertEqual(code, websocket.CLOSE_TICKET_REJECTED)
 
+    async def test_query_string_that_is_not_utf8_is_refused_not_a_crash(self):
+        socket = FakeSocket(5, ticket="")
+        socket.scope["query_string"] = b"ticket=" + bytes([0xFF, 0xFE])  # not valid UTF-8
+
+        self.assertEqual(await self._closed_with(socket), websocket.CLOSE_TICKET_REJECTED)
+
 
 class LiveUpdatesTest(SimpleTestCase):
     async def _open(self, task_id: int = 5) -> tuple[FakeSocket, asyncio.Task]:
@@ -145,6 +151,24 @@ class LiveUpdatesTest(SimpleTestCase):
         receivers = await asyncio.to_thread(signals._publisher().publish, channel_for(5), "x")
         self.assertEqual(receivers, 0)
 
+    async def test_a_socket_is_closed_for_renewal_when_it_reaches_its_lifetime(self):
+        with mock.patch.object(websocket, "SOCKET_MAX_AGE_SECONDS", 0.3):
+            socket, handler = await self._open()
+
+            message = await socket.next_message()
+            await asyncio.wait_for(handler, TIMEOUT)
+
+        self.assertEqual(message, {"type": "websocket.close", "code": websocket.CLOSE_RENEW})
+
+    async def test_a_socket_that_is_still_young_is_left_open(self):
+        socket, handler = await self._open()
+
+        with self.assertRaises(asyncio.TimeoutError):
+            await socket.next_message(timeout=0.5)
+        self.assertFalse(handler.done())
+        socket.disconnect()
+        await asyncio.wait_for(handler, TIMEOUT)
+
     async def test_redis_failure_closes_the_socket_so_the_page_reconnects(self):
         class BrokenRedis:
             def pubsub(self):
@@ -189,8 +213,16 @@ class RoutingTest(SimpleTestCase):
 
         await websocket.route_websockets(wrapped)(socket.scope, socket.receive, socket.send)
 
-        message = await socket.next_message()
-        self.assertEqual(
-            message, {"type": "websocket.close", "code": websocket.CLOSE_UNKNOWN_PATH}
-        )
+        # refused before it is accepted, which a client sees as an HTTP 403
+        self.assertEqual(await socket.next_message(), {"type": "websocket.close"})
+        wrapped.assert_not_awaited()
+
+    async def test_task_id_too_long_to_be_real_is_refused_without_an_error(self):
+        wrapped = mock.AsyncMock()
+        socket = FakeSocket(5, "")
+        socket.scope["path"] = "/api/annotation-stats/ws/tasks/" + "9" * 5000
+
+        await websocket.route_websockets(wrapped)(socket.scope, socket.receive, socket.send)
+
+        self.assertEqual(await socket.next_message(), {"type": "websocket.close"})
         wrapped.assert_not_awaited()
