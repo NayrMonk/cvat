@@ -15,3 +15,7 @@ class TaskAnnotationCountsSerializer(serializers.Serializer):
     task_id = serializers.IntegerField()
     total = serializers.IntegerField()
     labels = LabelCountSerializer(many=True)
+
+
+class LiveUpdateTicketSerializer(serializers.Serializer):
+    ticket = serializers.CharField()

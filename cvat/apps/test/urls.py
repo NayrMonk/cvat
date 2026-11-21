@@ -10,4 +10,9 @@ urlpatterns = [
         views.TaskAnnotationCountsView.as_view(),
         name="annotation_stats_task",
     ),
+    path(
+        "annotation-stats/tasks/<int:task_id>/ticket",
+        views.LiveUpdateTicketView.as_view(),
+        name="annotation_stats_ticket",
+    ),
 ]
