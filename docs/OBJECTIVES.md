@@ -61,6 +61,28 @@ Roughly: 9.5 ms is the floor for any authenticated CVAT request (nginx, uvicorn,
 counting itself (4 SQL queries), and the remaining ~17 ms is the task lookup, the access check and serialising the
 response. I did not isolate that last part, so I do not claim it is all the access check.
 
+**Re-run after the source split (item 7).** The split changed the query (`source` joined the `GROUP BY`
+columns) and the response, so the earlier number says nothing about the current code. Same method, same task restored
+to its 41,866 imported shapes (the 118 boxes I added to demo the split were removed first, and the counts were
+re-checked against the COCO file: 0 differences). Median of the 5 run medians **48.2 ms** (47.8 to 50.6 ms), still
+under the 100 ms target and about 3.5 ms slower than before the split. I did not isolate where those 3.5 ms come
+from, so I do not claim a cause.
+
+```
+# MO-1 re-run after the by_source change, 2026-11-21T11:46:11Z
+# GET http://localhost:8080/api/annotation-stats/tasks/1 (task 1: 5000 images, 41866 shapes), session cookie, ms, 1 warm-up discarded
+run 1 samples: 48.2 51.5 50.2 48.0 49.9 50.5 46.5 46.7 53.9 47.7 47.0 45.1 56.3 53.4 58.4 45.7 46.7 58.1 48.2 46.4 
+run 1 median=48.2 min=45.1 max=58.4
+run 2 samples: 48.3 58.5 53.9 52.6 53.3 54.0 50.7 50.5 48.1 48.1 47.0 53.4 62.0 47.8 45.7 52.0 52.2 48.0 49.8 46.5 
+run 2 median=50.6 min=45.7 max=62.0
+run 3 samples: 48.0 47.2 50.8 53.7 59.1 49.3 48.9 51.8 46.1 83.1 48.2 47.6 47.2 46.4 47.9 47.9 46.3 44.9 45.3 61.5 
+run 3 median=48.0 min=44.9 max=83.1
+run 4 samples: 57.8 51.7 63.5 61.2 66.6 53.4 57.9 52.6 46.9 47.8 45.9 44.1 46.8 62.9 45.0 44.2 46.4 46.4 45.4 71.7 
+run 4 median=49.8 min=44.1 max=71.7
+run 5 samples: 46.5 47.8 48.2 48.4 47.4 47.9 46.6 45.4 45.2 48.4 47.9 46.3 49.5 49.2 49.1 48.1 45.7 47.3 53.0 47.3 
+run 5 median=47.8 min=45.2 max=53.0
+```
+
 ## MO-2 — live update latency (stretch)
 
 | Field | Entry |
