@@ -58,6 +58,37 @@ class TaskAnnotationCountsTest(ApiTestBase):
         self.assertEqual(self._counts(response), {"cat": 4, "dog": 1, "bird": 0})
         self.assertEqual(response.json()["total"], 5)
 
+    def test_counts_are_split_by_source(self):
+        self._add_shapes(self.job, self.cat, 2, source="file")
+        self._add_shapes(self.job, self.cat, 3, source="manual")
+        self._add_shapes(self.job, self.cat, 1, source="auto")
+        LabeledImage.objects.create(job=self.job, label=self.cat, frame=0, source="semi-auto")
+
+        response = self._get(self.task.id, self.owner)
+
+        cat = next(label for label in response.json()["labels"] if label["name"] == "cat")
+        self.assertEqual(
+            cat["by_source"], {"auto": 1, "semi-auto": 1, "manual": 3, "file": 2, "consensus": 0}
+        )
+        self.assertEqual(cat["count"], 7)
+
+    def test_missing_source_counts_as_manual(self):
+        self._add_shapes(self.job, self.dog, 2, source=None)
+
+        response = self._get(self.task.id, self.owner)
+
+        dog = next(label for label in response.json()["labels"] if label["name"] == "dog")
+        self.assertEqual(dog["by_source"]["manual"], 2)
+
+    def test_source_split_adds_up_to_the_plain_count(self):
+        self._add_shapes(self.job, self.cat, 2, source="file")
+        self._add_shapes(self.job, self.dog, 3, source="manual")
+
+        response = self._get(self.task.id, self.owner)
+
+        for label in response.json()["labels"]:
+            self.assertEqual(sum(label["by_source"].values()), label["count"])
+
     def test_labels_are_sorted_by_count_and_include_zero_counts(self):
         self._add_shapes(self.job, self.dog, 2)
         self._add_shapes(self.job, self.cat, 1)
