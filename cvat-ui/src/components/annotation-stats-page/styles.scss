@@ -11,6 +11,10 @@
         margin-bottom: $grid-unit-size * 2;
     }
 
+    .cvat-annotation-stats-live {
+        text-align: right;
+    }
+
     .cvat-annotation-stats-chart {
         position: relative;
         width: 100%;
