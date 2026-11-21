@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: MIT
+
+@import 'base';
+
+.cvat-annotation-stats-page {
+    padding: $grid-unit-size * 2 $grid-unit-size * 3;
+    height: 100%;
+    overflow: auto;
+
+    .cvat-annotation-stats-header {
+        margin-bottom: $grid-unit-size * 2;
+    }
+
+    .cvat-annotation-stats-live {
+        text-align: right;
+    }
+
+    .cvat-annotation-stats-chart {
+        position: relative;
+        width: 100%;
+    }
+
+    .cvat-annotation-stats-empty {
+        margin-top: $grid-unit-size * 8;
+    }
+}
